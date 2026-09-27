@@ -1,0 +1,36 @@
+name: Rectificación o réplica
+description: Señala un dato erróneo, aporta contexto sobre un órgano o empresa, o ejerce tus derechos de protección de datos
+title: "[Rectificación] "
+labels: ["rectificacion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por ayudar a mejorar los datos. Respondemos en un máximo de 72 horas hábiles.
+        **No incluyas datos personales sensibles** en este formulario: es público.
+  - type: input
+    id: enlace
+    attributes:
+      label: Enlace a la ficha
+      description: Copia la dirección de la página (órgano o empresa)
+      placeholder: https://pedri77.github.io/oferta-unica/#/organo/...
+    validations:
+      required: true
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Tipo de solicitud
+      options:
+        - Dato erróneo
+        - Réplica o contexto de un órgano o empresa
+        - Protección de datos (oposición o supresión)
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: detalle
+    attributes:
+      label: Qué dato y qué corrección propones
+      description: Si puedes, enlaza el expediente en la Plataforma de Contratación u otra fuente
+    validations:
+      required: true

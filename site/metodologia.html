@@ -1,0 +1,51 @@
+<div class="prose">
+<p class="eyebrow">Metodología v1.0</p>
+<h1>Cómo se calculan los indicadores</h1>
+<p class="lede">Oferta Única mide la competencia en la contratación pública española con datos abiertos oficiales. No detecta delitos: señala patrones estadísticos que merecen una mirada más atenta.</p>
+
+<h2>Datos</h2>
+<ul>
+  <li><strong>Fuente:</strong> datos abiertos de la <a href="https://www.hacienda.gob.es/es-ES/GobiernoAbierto/Datos%20Abiertos/Paginas/LicitacionesContratante.aspx">Plataforma de Contratación del Sector Público</a> (Ministerio de Hacienda): licitaciones publicadas en la Plataforma, contratos menores y licitaciones de las plataformas autonómicas agregadas.</li>
+  <li><strong>Periodo:</strong> adjudicaciones desde enero de 2025. Los indicadores por órgano usan los últimos 12 meses por fecha de adjudicación.</li>
+  <li><strong>Actualización:</strong> diaria. Si Hacienda regenera un fichero ya publicado, se vuelve a procesar.</li>
+  <li><strong>Unidad:</strong> cada resultado de adjudicación (lote y adjudicatario). Cada expediente se toma en su última versión y se descartan los anulados.</li>
+  <li><strong>Importes:</strong> sin IVA. En los acuerdos marco la Plataforma repite el importe total para cada adjudicatario: se divide entre el número de adjudicatarios del lote y el establecimiento del acuerdo marco no se suma como gasto, porque es un techo, no un gasto.</li>
+  <li><strong>Territorio:</strong> provincia del órgano de contratación según su código postal, o el lugar de ejecución cuando falta.</li>
+</ul>
+
+<h2>Indicadores</h2>
+<p>Todos se calculan por órgano de contratación y se comparan con órganos del mismo tipo de administración (estatal, autonómica, local u otras) y tamaño (pequeño: menos de 50 adjudicaciones al año; mediano: 50 a 499; grande: 500 o más). Un indicador se marca como <strong>atípico</strong> solo si el órgano está en el percentil 90 o más de su grupo <em>y</em> supera un umbral de referencia. Con menos datos del mínimo indicado no se compara.</p>
+
+<h3>1. Oferta única</h3>
+<p>Porcentaje de lotes que recibieron una sola oferta, sobre los lotes con al menos una oferta. Solo procedimientos competitivos: abierto, abierto simplificado, restringido, licitación con negociación, negociado con publicidad y diálogo competitivo. Se excluyen acuerdos marco y sus derivados, sistemas dinámicos, negociados sin publicidad y contratos menores. Umbral de referencia: 20% (umbral rojo del Single Market Scoreboard de la Comisión Europea). Mínimo: 10 lotes. Se muestra el intervalo de confianza del 95% (Wilson).</p>
+<p class="muted small">Referencias: Fazekas, M. y Kocsis, G. (2020), <em>Uncovering High-Level Corruption: Cross-National Objective Corruption Risk Indicators Using Public Procurement Data</em>, British Journal of Political Science; Comisión Europea, Single Market Scoreboard.</p>
+
+<h3>2. Negociado sin publicidad</h3>
+<p>Porcentaje del importe adjudicado por procedimiento negociado sin publicidad, sobre el importe adjudicado sin contar contratos menores. Las emergencias (art. 120 LCSP) se muestran aparte y no cuentan. Umbral: 10%. Mínimo: 10 adjudicaciones. Es un procedimiento excepcional que la ley solo admite en supuestos tasados (art. 168 LCSP), como la exclusividad técnica.</p>
+
+<h3>3. Menores pegados al umbral</h3>
+<p>Los contratos menores no pueden superar 15.000 € (servicios y suministros) o 40.000 € (obras) sin IVA (art. 118 LCSP). El indicador divide los menores entre el 95% y el 100% del límite por los que están entre el 80% y el 95%. Si no hubiera efecto frontera, el cociente rondaría 0,33. Umbral: 0,5. Mínimo: 10 contratos en esas franjas.</p>
+
+<h3>4. Menores recurrentes</h3>
+<p>Porcentaje del importe en contratos menores que va a combinaciones de la misma empresa, el mismo sector (división CPV) y el mismo año con 3 o más contratos que juntos superan el límite. Desde el Real Decreto-ley 3/2020 superar esa suma no es por sí mismo una infracción, pero puede indicar necesidades estables que deberían licitarse; el fraccionamiento está prohibido (arts. 99.2 y 101.4 LCSP). Umbral: 25%. Mínimo: 20 menores. Los contratos con autónomos no pueden agruparse porque sus datos se anonimizan.</p>
+
+<h3>5. Concentración de proveedores</h3>
+<p>Índice Herfindahl-Hirschman del importe adjudicado por proveedor, de 0 (muy repartido) a 10.000 (un único proveedor). Umbral: 2.500, que las autoridades de competencia consideran alta concentración. Mínimo: 10 adjudicaciones. Cada adjudicación a una persona física cuenta como un proveedor distinto.</p>
+
+<h3>6. Plazos cortos</h3>
+<p>Porcentaje de licitaciones con un plazo para presentar ofertas inferior al mínimo legal, contado desde la primera publicación del anuncio de licitación hasta el fin de plazo. Por prudencia solo se evalúan casos sin ambigüedad: procedimiento abierto no sujeto a regulación armonizada y sin tramitación urgente (mínimo 15 días, 26 en obras; art. 156.6) y abierto simplificado (mínimo absoluto de 10 días; art. 159). Los contratos armonizados admiten reducciones que no pueden comprobarse con estos datos y no se evalúan. Umbral: 5%. Mínimo: 10 licitaciones.</p>
+
+<h3>Calidad de los datos</h3>
+<p>Porcentaje de lotes competitivos que no publican cuántas ofertas recibieron. Esos lotes no cuentan en el indicador de oferta única; una cifra alta resta fiabilidad al resto.</p>
+
+<h2>Límites</h2>
+<ul>
+  <li>Los indicadores describen patrones, no conductas. Un valor atípico puede tener causas legítimas: mercados con pocos proveedores, prestaciones muy especializadas, emergencias o errores en los datos de origen.</li>
+  <li>La calidad depende de lo que publica cada órgano. Algunas comunidades publican parte de sus contratos solo en sus plataformas propias, con menos campos.</li>
+  <li>No se usa ningún índice compuesto ni ranking de «peores» órganos.</li>
+  <li>Las cifras de España frente a la UE proceden del Single Market Scoreboard y se refieren a contratos publicados en el Diario Oficial de la UE; no son directamente comparables con las nuestras, que incluyen contratos de menor importe.</li>
+</ul>
+
+<h2>Código y correcciones</h2>
+<p>El código que descarga los datos y calcula los indicadores es abierto: <a href="https://github.com/pedri77/oferta-unica">github.com/pedri77/oferta-unica</a>. Los cambios de metodología se versionan. Si detectas un error, <a href="#/privacidad">solicita una rectificación</a>.</p>
+</div>
