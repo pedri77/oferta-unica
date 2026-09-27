@@ -12,6 +12,10 @@ on:
         description: "Años completos a (re)cargar, separados por espacios (p. ej. 2023 2024)"
         required: false
         default: ""
+      reprocesar:
+        description: "Reprocesar todos los ficheros aunque no hayan cambiado (tras añadir campos al parser)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -47,10 +51,12 @@ jobs:
           fi
       - name: Descargar y procesar datos nuevos
         run: |
-          python scripts/fetch.py --db work/state.sqlite --desde 2025-01
+          FORZAR=""
+          if [ "${{ github.event.inputs.reprocesar }}" = "true" ]; then FORZAR="--forzar"; fi
           if [ -n "${{ github.event.inputs.anual }}" ]; then
-            python scripts/fetch.py --db work/state.sqlite --anual ${{ github.event.inputs.anual }}
+            python scripts/fetch.py --db work/state.sqlite --anual ${{ github.event.inputs.anual }} $FORZAR
           fi
+          python scripts/fetch.py --db work/state.sqlite --desde 2025-01 $FORZAR
       - name: Calcular indicadores
         run: python scripts/build.py --db work/state.sqlite --out site/data
       - name: Guardar el estado

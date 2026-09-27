@@ -160,7 +160,7 @@ def publication_date(cfs):
 COLS = ("entry_id", "src", "url", "organo_key", "organo", "tipo_admin", "prov", "ccaa", "objeto", "tipo_contrato",
         "procedimiento", "sistema", "urgencia", "sara", "cpv", "presupuesto", "fecha_pub", "fin_ofertas",
         "fecha_adj", "n_ofertas", "importe", "importe_iva", "n_res_lote", "adj_nif", "adj_nombre", "adj_tipo",
-        "pyme", "lote")
+        "pyme", "lote", "fondos", "fondos_txt")
 
 
 def row_key(eid: str, src: str) -> str:
@@ -206,6 +206,10 @@ def parse_entry(e, fname):
         "presupuesto": num(pp, "cac:BudgetAmount/cbc:TaxExclusiveAmount"),
         "fecha_pub": publication_date(cfs),
         "fin_ofertas": (txt(tp, "cac:TenderSubmissionDeadlinePeriod/cbc:EndDate") or "")[:10] or None,
+        # Financiación: NO-EU, EU, PRTR (Next Generation), FEDER, FSE+, FEADER, OFE…
+        # Puede haber varios códigos (p. ej. «EU» y «PRTR»): se guardan todos, separados por «|»
+        "fondos": "|".join(sorted({(c.text or "").strip() for c in cfs.findall("cac:TenderingTerms/cbc:FundingProgramCode", NS)} - {""})) or None,
+        "fondos_txt": " | ".join((c.text or "").strip() for c in cfs.findall("cac:TenderingTerms/cbc:FundingProgram", NS) if (c.text or "").strip())[:160] or None,
     }
     lot_budget = {}
     for lot in cfs.findall("cac:ProcurementProjectLot", NS):
@@ -261,6 +265,10 @@ def open_db(path: str) -> sqlite3.Connection:
     db.execute("CREATE TABLE IF NOT EXISTS entries(id TEXT PRIMARY KEY, updated TEXT, src TEXT, k TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS tombstones(id TEXT PRIMARY KEY, at TEXT)")
     db.execute(f"CREATE TABLE IF NOT EXISTS rows({', '.join(COLS)})")
+    existentes = {r[1] for r in db.execute("PRAGMA table_info(rows)")}
+    for c in COLS:
+        if c not in existentes:  # columnas añadidas en versiones posteriores
+            db.execute(f"ALTER TABLE rows ADD COLUMN {c}")
     db.execute("CREATE INDEX IF NOT EXISTS rows_entry ON rows(entry_id)")
     return db
 
@@ -273,8 +281,9 @@ def iter_atoms(path: str):
                     yield n, fh
 
 
-def ingest(path: str, db: sqlite3.Connection, log=sys.stderr) -> dict:
-    """Añade un ZIP al estado. Solo reemplaza un expediente si la versión es más reciente."""
+def ingest(path: str, db: sqlite3.Connection, log=sys.stderr, force: bool = False) -> dict:
+    """Añade un ZIP al estado. Solo reemplaza un expediente si la versión es más reciente
+    (o igual, con force=True, para reprocesar tras añadir campos al parser)."""
     st = {"entries": 0, "updated": 0, "tombstones": 0, "rows": 0, "errors": 0}
     cur = db.cursor()
     for fname, fh in iter_atoms(path):
@@ -289,7 +298,7 @@ def ingest(path: str, db: sqlite3.Connection, log=sys.stderr) -> dict:
                     upd = to_utc(upd)
                     st["entries"] += 1
                     prev = cur.execute("SELECT updated FROM entries WHERE id=?", (eid,)).fetchone()
-                    if prev is None or upd > prev[0]:
+                    if prev is None or upd > prev[0] or (force and upd >= prev[0]):
                         short = row_key(eid, src)
                         cur.execute("INSERT OR REPLACE INTO entries VALUES(?,?,?,?)", (eid, upd, src, short))
                         cur.execute("DELETE FROM rows WHERE entry_id=?", (short,))

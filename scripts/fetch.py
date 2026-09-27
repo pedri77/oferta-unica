@@ -87,6 +87,7 @@ def main() -> int:
     ap.add_argument("--desde", default=None, help="AAAA-MM: ZIP mensuales desde ese mes")
     ap.add_argument("--anual", nargs="*", default=[], help="años completos con el ZIP anual")
     ap.add_argument("--feeds", nargs="*", default=list(FEEDS))
+    ap.add_argument("--forzar", action="store_true", help="reprocesa aunque el fichero no haya cambiado (tras añadir campos)")
     a = ap.parse_args()
 
     manifest_path = Path(a.manifest or Path(a.db).with_name("manifest.json"))
@@ -100,7 +101,7 @@ def main() -> int:
         if ver is None:
             print(f"{feed} {per}: no disponible")
             continue
-        if manifest.get(url) == ver:
+        if manifest.get(url) == ver and not a.forzar:
             continue
         with tempfile.TemporaryDirectory() as tmp:
             dest = os.path.join(tmp, "f.zip")
@@ -109,7 +110,7 @@ def main() -> int:
                 print(f"{feed} {per}: fallo de descarga", file=sys.stderr)
                 continue
             size = os.path.getsize(dest) / 1e6
-            st = ingest(dest, db)
+            st = ingest(dest, db, force=a.forzar)
         manifest[url] = ver
         manifest_path.write_text(json.dumps(manifest, indent=1))
         changed += 1
