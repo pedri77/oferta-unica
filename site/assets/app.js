@@ -290,7 +290,8 @@ const FONDO_TXT = { "PRTR": "Next Generation (Plan de Recuperación)", "FEDER": 
 
 async function viewFondos() {
   const F = await get("fondos.json");
-  if (!F) return (app.innerHTML = `<div class="empty">Datos de fondos europeos aún no disponibles.</div>`);
+  const hayDatos = F && Object.values(F.anual || {}).some((c) => c.PRTR?.n);
+  if (!hayDatos) return (app.innerHTML = `<p class="eyebrow">Next Generation y otros fondos europeos</p><h1>¿Dónde van los fondos europeos?</h1><div class="empty">Estamos procesando la financiación de los 2,6 millones de contratos. Esta sección estará disponible en unas horas.</div>`);
   const years = Object.keys(F.anual).filter((y) => y >= "2023").sort();
   const sum = (cat, key) => years.reduce((a, y) => a + (F.anual[y][cat]?.[key] || 0), 0);
   const prtrImp = sum("PRTR", "importe"), prtrN = sum("PRTR", "n");
