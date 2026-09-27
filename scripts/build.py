@@ -110,7 +110,7 @@ def main() -> int:
     ap.add_argument("--db", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--hasta", default=None, help="fecha de corte AAAA-MM-DD (por defecto hoy)")
-    ap.add_argument("--desde", default="2025-01-01", help="primera fecha de adjudicación cubierta por los datos cargados")
+    ap.add_argument("--desde", default="2023-01-01", help="primera fecha de adjudicación cubierta por los datos cargados")
     a = ap.parse_args()
     out = Path(a.out)
     (out / "organos").mkdir(parents=True, exist_ok=True)
