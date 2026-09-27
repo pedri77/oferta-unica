@@ -3,6 +3,9 @@ name: Actualizar datos y publicar
 on:
   schedule:
     - cron: "30 5 * * *"   # después de que Hacienda regenere los ficheros (04:00)
+  push:
+    branches: [main]
+    paths: ["site/**", "scripts/**"]
   workflow_dispatch:
     inputs:
       anual:

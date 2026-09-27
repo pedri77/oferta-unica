@@ -117,7 +117,7 @@ async function viewHome() {
       <div class="kpi"><b>${fmt(R.filas)}</b><span>adjudicaciones analizadas (${years[0]}–${years.at(-1)})</span></div>
       <div class="kpi"><b>${fmt(R.organos)}</b><span>órganos con contratos en los últimos 12 meses</span></div>
       <div class="kpi"><b>${eur(last.importe)}</b><span>adjudicado en ${years.at(-1)} (hasta ${dateEs(R.hasta)})</span></div>
-      <div class="kpi"><b>${fmt(R.anual[ult]?.nsp, 1)}%</b><span>del importe por negociado sin publicidad (${ult})</span></div>
+      <div class="kpi"><b>${fmt(R.anual[ult]?.nsp_n, 1)}%</b><span>de los contratos (sin menores) por negociado sin publicidad en ${ult}; ${fmt(R.anual[ult]?.nsp, 1)}% del importe</span></div>
     </div>
     <h2>España frente a la Unión Europea</h2>
     <p class="muted small">Indicadores del Single Market Scoreboard de la Comisión Europea (datos de 2024, contratos publicados en el Diario Oficial de la UE). <a href="${R.ue.url}">Fuente</a>.</p>

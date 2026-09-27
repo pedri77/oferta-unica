@@ -10,6 +10,8 @@
   <li><strong>Actualización:</strong> diaria. Si Hacienda regenera un fichero ya publicado, se vuelve a procesar.</li>
   <li><strong>Unidad:</strong> cada resultado de adjudicación (lote y adjudicatario). Cada expediente se toma en su última versión y se descartan los anulados.</li>
   <li><strong>Importes:</strong> sin IVA. En los acuerdos marco la Plataforma repite el importe total para cada adjudicatario: se divide entre el número de adjudicatarios del lote y el establecimiento del acuerdo marco no se suma como gasto, porque es un techo, no un gasto.</li>
+  <li><strong>Importes imposibles:</strong> se descartan los importes adjudicados que superan en más de 20 veces el presupuesto de licitación (y 1 M€), y los contratos menores que superan el doble del límite legal. Son errores de carga en origen: el contrato cuenta, pero su importe no.</li>
+  <li><strong>Órganos:</strong> cada órgano se identifica por su código (DIR3 o NIF) y el nombre con el que publica, porque varios órganos de una misma administración pueden compartir código.</li>
   <li><strong>Territorio:</strong> provincia del órgano de contratación según su código postal, o el lugar de ejecución cuando falta.</li>
 </ul>
 
@@ -21,7 +23,7 @@
 <p class="muted small">Referencias: Fazekas, M. y Kocsis, G. (2020), <em>Uncovering High-Level Corruption: Cross-National Objective Corruption Risk Indicators Using Public Procurement Data</em>, British Journal of Political Science; Comisión Europea, Single Market Scoreboard.</p>
 
 <h3>2. Negociado sin publicidad</h3>
-<p>Porcentaje del importe adjudicado por procedimiento negociado sin publicidad, sobre el importe adjudicado sin contar contratos menores. Las emergencias (art. 120 LCSP) se muestran aparte y no cuentan. Umbral: 10%. Mínimo: 10 adjudicaciones. Es un procedimiento excepcional que la ley solo admite en supuestos tasados (art. 168 LCSP), como la exclusividad técnica.</p>
+<p>Porcentaje del importe adjudicado por procedimiento negociado sin publicidad, sobre el importe adjudicado sin contar contratos menores. Las emergencias (art. 120 LCSP) se muestran aparte y no cuentan. Umbral: 10%. Mínimo: 10 adjudicaciones. Es un procedimiento excepcional que la ley solo admite en supuestos tasados (art. 168 LCSP), como la exclusividad técnica. Los contratos de defensa y seguridad se rigen por la Ley 24/2011, que permite negociar con más frecuencia: por eso los órganos de adquisición de Defensa pueden mostrar valores altos por causas previstas en la ley. En la portada se muestra también el porcentaje por número de contratos, que no se deja arrastrar por unos pocos contratos muy grandes.</p>
 
 <h3>3. Menores pegados al umbral</h3>
 <p>Los contratos menores no pueden superar 15.000 € (servicios y suministros) o 40.000 € (obras) sin IVA (art. 118 LCSP). El indicador divide los menores entre el 95% y el 100% del límite por los que están entre el 80% y el 95%. Si no hubiera efecto frontera, el cociente rondaría 0,33. Umbral: 0,5. Mínimo: 10 contratos en esas franjas.</p>
