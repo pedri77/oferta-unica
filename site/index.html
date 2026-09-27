@@ -29,11 +29,12 @@
     <button class="theme" id="themeBtn" type="button" aria-label="Cambiar tema">◐</button>
   </div>
 </header>
-<div class="kitbar" id="kitBar" hidden><div class="wrap"><span>🤖 Hecho con IA en un día. <a href="https://iacedemy.com/kit-observatorio?utm_source=oferta-unica&amp;utm_medium=banner&amp;utm_campaign=construido-con-ia" target="_blank" rel="noopener">Aprende a construir algo así: kit gratis con plantilla y prompts</a></span><button type="button" id="kitClose" aria-label="Cerrar aviso">×</button></div></div>
-<script>(function(){var k="kitbar-cerrado",b=document.getElementById("kitBar");try{if(localStorage.getItem(k))return;}catch(e){}b.hidden=false;document.getElementById("kitClose").onclick=function(){b.hidden=true;try{localStorage.setItem(k,"1")}catch(e){}};})();</script>
 <main id="app" class="wrap" aria-live="polite"><p class="muted">Cargando…</p></main>
 <footer class="foot">
   <div class="wrap">
+<div class="kitbar" id="kitBar" hidden><div class="kitbox"><span>🤖 Hecho con IA en un día. <a href="https://iacedemy.com/kit-observatorio?utm_source=oferta-unica&amp;utm_medium=banner&amp;utm_campaign=construido-con-ia" target="_blank" rel="noopener">Aprende a construir algo así: kit gratis con plantilla y prompts</a></span><button type="button" id="kitClose" aria-label="Cerrar aviso">×</button></div></div>
+<script>(function(){var k="kitbar-cerrado",b=document.getElementById("kitBar");try{if(localStorage.getItem(k))return;}catch(e){}b.hidden=false;document.getElementById("kitClose").onclick=function(){b.hidden=true;try{localStorage.setItem(k,"1")}catch(e){}};})();</script>
+
     <p>Datos: <a href="https://contrataciondelsectorpublico.gob.es/">Plataforma de Contratación del Sector Público</a>, Ministerio de Hacienda. Reutilizados conforme a la Ley 37/2007; la Administración no patrocina ni respalda este proyecto. <span id="footDate"></span></p>
     <p>Proyecto cívico sin ánimo de lucro y de código abierto · <a href="https://github.com/pedri77/oferta-unica">GitHub</a> · <a href="#/privacidad">Privacidad y rectificación</a> · Del mismo autor: <a href="https://pedri77.github.io/mapa-vivienda-espana/">Techo, la vivienda en datos</a></p>
   </div>
