@@ -284,6 +284,78 @@ async function viewEmpresa(nif) {
   ], e.recientes, "f");
 }
 
+// ---------- fondos europeos ----------
+const CPV_DIV = { "03": "Agricultura y ganadería", "09": "Combustibles y energía", "14": "Minería", "15": "Alimentación", "18": "Ropa y calzado", "22": "Impresos", "24": "Productos químicos", "30": "Equipos de oficina e informática", "31": "Maquinaria eléctrica", "32": "Telecomunicaciones y audiovisual", "33": "Equipos médicos y farmacia", "34": "Vehículos y transporte", "35": "Seguridad y defensa", "37": "Instrumentos musicales y deporte", "38": "Laboratorio y precisión", "39": "Mobiliario y limpieza", "42": "Maquinaria industrial", "43": "Maquinaria de minería y construcción", "44": "Materiales de construcción", "45": "Obras de construcción", "48": "Software", "50": "Reparación y mantenimiento", "51": "Instalación", "55": "Hostelería", "60": "Transporte", "63": "Servicios de transporte y turismo", "64": "Correos y telecomunicaciones", "65": "Suministros públicos (agua, energía)", "66": "Servicios financieros y seguros", "70": "Inmobiliarios", "71": "Arquitectura e ingeniería", "72": "Servicios informáticos", "73": "I+D", "75": "Administración y defensa", "76": "Petróleo y gas", "77": "Agricultura y jardinería", "79": "Servicios a empresas", "80": "Educación y formación", "85": "Sanidad y servicios sociales", "90": "Residuos, limpieza y medio ambiente", "92": "Ocio, cultura y deporte", "98": "Otros servicios" };
+const FONDO_TXT = { "PRTR": "Next Generation (Plan de Recuperación)", "FEDER": "FEDER (desarrollo regional)", "FSE+": "FSE+ (empleo y formación)", "FEADER": "FEADER (desarrollo rural)", "FEMPA": "FEMPA (pesca)", "OFE": "Otros fondos europeos", "UE sin especificar": "Fondos UE sin especificar", "Sin fondos UE": "Sin fondos europeos", "Sin dato": "No declarado" };
+
+async function viewFondos() {
+  const F = await get("fondos.json");
+  if (!F) return (app.innerHTML = `<div class="empty">Datos de fondos europeos aún no disponibles.</div>`);
+  const years = Object.keys(F.anual).filter((y) => y >= "2023").sort();
+  const sum = (cat, key) => years.reduce((a, y) => a + (F.anual[y][cat]?.[key] || 0), 0);
+  const prtrImp = sum("PRTR", "importe"), prtrN = sum("PRTR", "n");
+  const totN = years.reduce((a, y) => a + Object.values(F.anual[y]).reduce((b, v) => b + v.n, 0), 0);
+  const ultimoCompleto = years.filter((y) => F.competencia[y]?.PRTR?.oferta_unica != null).at(-1);
+  const comp = F.competencia[ultimoCompleto] || {};
+  const cats = ["PRTR", "FEDER", "FSE+", "FEADER", "FEMPA", "OFE", "UE sin especificar", "Sin fondos UE", "Sin dato"];
+  const provs = Object.entries(F.provincias).filter(([p]) => PROV[p]).sort((a, b) => b[1].importe - a[1].importe);
+  const maxP = provs[0]?.[1].importe || 1;
+  const color = (v) => `color-mix(in srgb, var(--accent) ${Math.max(8, Math.round((v / maxP) * 85))}%, var(--paper))`;
+  const meses = F.meses.filter((m) => m[0] >= "2023-01");
+  app.innerHTML = `<p class="eyebrow">Next Generation y otros fondos europeos</p>
+    <h1>¿Dónde van los fondos europeos?</h1>
+    <p class="lede">Contratos públicos financiados con fondos de la Unión Europea desde ${years[0]}, según lo que declara cada órgano en la Plataforma de Contratación. Quién los adjudica, quién los gana y cuánta competencia hubo.</p>
+    <div class="kpis">
+      <div class="kpi"><b>${eur(prtrImp)}</b><span>adjudicados con fondos Next Generation (${years[0]}–${years.at(-1)})</span></div>
+      <div class="kpi"><b>${fmt(prtrN)}</b><span>adjudicaciones Next Generation (${fmt((100 * prtrN) / totN, 1)}% del total)</span></div>
+      <div class="kpi"><b>${fmt(comp.PRTR?.oferta_unica, 1)}%</b><span>de concursos Next Generation con una sola oferta en ${ultimoCompleto}</span></div>
+      <div class="kpi"><b>${fmt(comp["Sin fondos UE"]?.oferta_unica, 1)}%</b><span>en los concursos sin fondos europeos, el mismo año</span></div>
+    </div>
+    <h2>Importe Next Generation adjudicado por mes</h2>
+    <div class="card">${lineChart(meses.map((m) => [m[0], m[2]]), { fmtY: (v) => eur(v) })}
+    <p class="muted small">Fecha de adjudicación. Los meses más recientes pueden completarse cuando los órganos publiquen sus adjudicaciones.</p></div>
+    <h2>¿Hubo más o menos competencia?</h2>
+    <p class="muted small">Lotes de procedimientos competitivos con una sola oferta, por origen de la financiación.</p>
+    <div class="table-wrap" id="comp"></div>
+    <div class="grid2">
+      <div><h2>Por tipo de fondo</h2><div class="table-wrap" id="cats"></div></div>
+      <div><h2>En qué se gasta</h2><div class="table-wrap" id="cpv"></div><p class="muted small">Sector del contrato (división CPV), importe Next Generation.</p></div>
+    </div>
+    <h2>Por provincia del órgano</h2>
+    <p class="muted small">Importe Next Generation adjudicado. Cuanto más intenso el color, más importe.</p>
+    <div class="provgrid">${provs.map(([p, v]) => `<a href="#/organos?prov=${p}" style="background:${color(v.importe)}"><span>${esc(PROV[p])}</span><b>${eur(v.importe)}</b><span>${fmt(v.n)} adjudicaciones</span></a>`).join("")}</div>
+    <div class="grid2">
+      <div><h2>Órganos que más adjudican</h2><div class="table-wrap" id="orgs"></div></div>
+      <div><h2>Empresas que más reciben</h2><div class="table-wrap" id="emps"></div><p class="muted small">Solo personas jurídicas y UTE. Los autónomos no se muestran.</p></div>
+    </div>
+    <div class="disclaimer"><strong>Cómo leer estos datos.</strong> La financiación la declara cada órgano en la Plataforma de Contratación (campo de financiación del expediente) y puede estar incompleta: hay contratos con fondos europeos que no lo indican. Se consideran Next Generation los que llevan el código PRTR o mencionan el Plan de Recuperación, el MRR o un componente del plan. Los importes son de adjudicación, sin IVA; no equivalen a lo finalmente pagado. <a href="#/metodologia">Metodología</a>.</div>`;
+  sortable($("#comp"), [
+    { k: "y", l: "Año" },
+    { k: "prtr", l: "Next Generation", num: true, r: (r) => (r.prtr == null ? "—" : `${fmt(r.prtr, 1)}%`) },
+    { k: "otros", l: "Otros fondos UE", num: true, r: (r) => (r.otros == null ? "—" : `${fmt(r.otros, 1)}%`) },
+    { k: "sin", l: "Sin fondos UE", num: true, r: (r) => (r.sin == null ? "—" : `${fmt(r.sin, 1)}%`) },
+    { k: "n", l: "Lotes Next Generation", num: true, r: (r) => fmt(r.n) },
+  ], years.map((y) => ({ y, prtr: F.competencia[y]?.PRTR?.oferta_unica, otros: F.competencia[y]?.["Otros fondos UE"]?.oferta_unica, sin: F.competencia[y]?.["Sin fondos UE"]?.oferta_unica, n: F.competencia[y]?.PRTR?.lotes || 0 })), "y", false);
+  sortable($("#cats"), [
+    { k: "t", l: "Financiación" }, { k: "n", l: "Adjudicaciones", num: true, r: (r) => fmt(r.n) }, { k: "i", l: "Importe", num: true, r: (r) => eur(r.i) },
+  ], cats.map((c) => ({ t: FONDO_TXT[c] || c, n: sum(c, "n"), i: sum(c, "importe") })).filter((r) => r.n), "i");
+  sortable($("#cpv"), [
+    { k: "t", l: "Sector" }, { k: "i", l: "Importe", num: true, r: (r) => eur(r.i) },
+  ], F.cpv.map(([c, i]) => ({ t: `${CPV_DIV[c] || "CPV " + c}`, i })), "i");
+  sortable($("#orgs"), [
+    { k: 1, l: "Órgano", r: (r) => `<a href="#/organo/${encodeURIComponent(r[0])}">${esc(r[1])}</a><div class="muted small">${esc(PROV[r[2]] || "")}</div>` },
+    { k: 4, l: "Importe", num: true, r: (r) => eur(r[4]) },
+    { k: 3, l: "Contratos", num: true, r: (r) => fmt(r[3]) },
+    { k: 5, l: "Oferta única", num: true, r: (r) => (r[5] == null ? "—" : `${fmt(r[5], 1)}%`) },
+  ], F.organos.slice(0, 25), 4);
+  sortable($("#emps"), [
+    { k: 1, l: "Empresa", r: (r) => `<a href="#/empresa/${encodeURIComponent(r[0])}">${esc(r[1])}</a>` },
+    { k: 3, l: "Importe", num: true, r: (r) => eur(r[3]) },
+    { k: 2, l: "Contratos", num: true, r: (r) => fmt(r[2]) },
+    { k: 4, l: "Órganos", num: true, r: (r) => fmt(r[4]) },
+  ], F.empresas.slice(0, 25), 3);
+}
+
 async function viewStatic(name) {
   const html = await fetch(`${name}.html`).then((r) => r.text()).catch(() => "");
   app.innerHTML = html || `<div class="empty">Página no disponible.</div>`;
@@ -303,6 +375,7 @@ async function route() {
     else if (parts[0] === "organos") await viewOrganos(params);
     else if (parts[0] === "empresa") await viewEmpresa(decodeURIComponent(parts[1]));
     else if (parts[0] === "empresas") await viewEmpresas();
+    else if (parts[0] === "fondos") await viewFondos();
     else if (parts[0] === "metodologia") await viewStatic("metodologia");
     else if (parts[0] === "privacidad") await viewStatic("privacidad");
     else await viewHome();

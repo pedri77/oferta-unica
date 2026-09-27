@@ -16,6 +16,7 @@ Cada órgano se compara con órganos del mismo tipo y tamaño (percentil). Ver M
 from __future__ import annotations
 
 import argparse
+import re
 import hashlib
 import json
 import math
@@ -66,6 +67,25 @@ def short_url(u: str | None) -> str | None:
     if u and u.startswith(DEEPLINK):
         return "~" + u[len(DEEPLINK):]
     return u
+
+
+RE_NEXTGEN = re.compile(r"NEXT\s*GENERATION|PRTR|RECUPERACI[OÓ]N|RESILIENCIA|MRR|\bC\d{2}\.I\d{2}", re.I)
+FONDOS_OTROS = ["FEDER", "FSE+", "FEADER", "FEMPA", "OFE"]
+
+
+def categoria_fondos(codigos: str | None, texto: str | None) -> str:
+    """Fondo que financia el contrato según la Plataforma: PRTR (Next Generation), otro fondo UE, sin fondos o sin dato."""
+    cs = set((codigos or "").split("|")) - {""}
+    if "PRTR" in cs or (texto and RE_NEXTGEN.search(texto)):
+        return "PRTR"
+    for f in FONDOS_OTROS:
+        if f in cs:
+            return f
+    if "EU" in cs:
+        return "UE sin especificar"
+    if "NO-EU" in cs:
+        return "Sin fondos UE"
+    return "Sin dato"
 
 
 def umbral(tipo: str | None) -> int:
@@ -140,6 +160,16 @@ def main() -> int:
     prov_stats = defaultdict(lambda: {"lotes": 0, "unica": 0, "nsp": 0.0, "nomenor": 0.0, "importe": 0.0, "n": 0})
     calidad = Counter()
     seen_lotes = set()  # un lote con varios adjudicatarios cuenta una sola vez
+    # Fondos europeos (todo el periodo, no solo 12 meses)
+    fondos_anual = defaultdict(lambda: defaultdict(lambda: {"n": 0, "importe": 0.0}))
+    fondos_mes = defaultdict(lambda: {"n": 0, "importe": 0.0})
+    fondos_comp = defaultdict(lambda: defaultdict(lambda: [0, 0]))  # año -> grupo -> [lotes, oferta única]
+    fondos_prov = defaultdict(lambda: {"n": 0, "importe": 0.0})
+    fondos_org = defaultdict(lambda: {"n": 0, "importe": 0.0, "lotes": 0, "unica": 0})
+    fondos_emp = defaultdict(lambda: {"n": 0, "importe": 0.0, "organos": set()})
+    fondos_cpv = Counter()
+    fondos_proc = Counter()
+    tiene_fondos = "fondos" in [c[1] for c in db.execute("PRAGMA table_info(rows)")]
     n_rows = 0
 
     for r in db.execute(q, (a.desde, hasta_s)):
@@ -197,6 +227,38 @@ def main() -> int:
             ny["unica"] += r["n_ofertas"] == 1
             nm["lotes"] += 1
             nm["unica"] += r["n_ofertas"] == 1
+        if tiene_fondos:
+            cat = categoria_fondos(r["fondos"], r["fondos_txt"])
+            fa = fondos_anual[y][cat]
+            fa["n"] += 1
+            fa["importe"] += gasto
+            grupo = "PRTR" if cat == "PRTR" else "Sin fondos UE" if cat == "Sin fondos UE" else "Otros fondos UE" if cat != "Sin dato" else None
+            if nuevo_lote and grupo:
+                fc = fondos_comp[y][grupo]
+                fc[0] += 1
+                fc[1] += r["n_ofertas"] == 1
+            if cat == "PRTR":
+                fondos_mes[mes]["n"] += 1
+                fondos_mes[mes]["importe"] += gasto
+                fp = fondos_prov[r["prov"] or "??"]
+                fp["n"] += 1
+                fp["importe"] += gasto
+                fo = fondos_org[k]
+                fo["n"] += 1
+                fo["importe"] += gasto
+                if nuevo_lote:
+                    fo["lotes"] += 1
+                    fo["unica"] += r["n_ofertas"] == 1
+                if r["adj_nif"] and not fis:
+                    fe = fondos_emp[r["adj_nif"]]
+                    fe["n"] += 1
+                    fe["importe"] += gasto
+                    fe["organos"].add(k)
+                    if r["adj_nombre"]:
+                        emp_name.setdefault(r["adj_nif"], r["adj_nombre"])
+                if r["cpv"]:
+                    fondos_cpv[r["cpv"][:2]] += gasto
+                fondos_proc[r["procedimiento"] or "?"] += 1
         if not en12:
             continue
 
@@ -391,6 +453,24 @@ def main() -> int:
     (out / "empresas" / "buscar.json").write_text(json.dumps([[x[0], x[1]] for x in eindex if x[2] >= 50000], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     for s, d in eshards.items():
         (out / "empresas" / f"{s}.json").write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+    # ---------------- fondos europeos
+    if tiene_fondos:
+        pct = lambda c: round(100 * c[1] / c[0], 1) if c[0] >= 30 else None
+        fondos = {
+            "anual": {yy: {cat: {"n": v["n"], "importe": round(v["importe"])} for cat, v in cats.items()} for yy, cats in sorted(fondos_anual.items())},
+            "meses": sorted([m, v["n"], round(v["importe"])] for m, v in fondos_mes.items()),
+            "competencia": {yy: {g: {"lotes": c[0], "oferta_unica": pct(c)} for g, c in gs.items()} for yy, gs in sorted(fondos_comp.items())},
+            "provincias": {p_: {"n": v["n"], "importe": round(v["importe"])} for p_, v in fondos_prov.items()},
+            "organos": [[kk, org_meta.get(kk, (kk,))[0], org_meta.get(kk, (None, None, None))[2] if kk in org_meta else None, v["n"], round(v["importe"]),
+                         round(100 * v["unica"] / v["lotes"], 1) if v["lotes"] >= 10 else None, v["lotes"]]
+                        for kk, v in sorted(fondos_org.items(), key=lambda x: -x[1]["importe"])[:300]],
+            "empresas": [[nif, emp_name.get(nif, nif), v["n"], round(v["importe"]), len(v["organos"])]
+                         for nif, v in sorted(fondos_emp.items(), key=lambda x: -x[1]["importe"])[:300]],
+            "cpv": [[c, round(x)] for c, x in fondos_cpv.most_common(12)],
+            "procedimientos": [[p_, PROC_TXT.get(p_, p_), c] for p_, c in fondos_proc.most_common()],
+        }
+        (out / "fondos.json").write_text(json.dumps(fondos, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # ---------------- resumen nacional
     years = sorted(nat_year)
