@@ -357,6 +357,82 @@ async function viewFondos() {
   ], F.empresas.slice(0, 25), 3);
 }
 
+// ---------- inteligencia artificial ----------
+async function viewIA() {
+  const D = await get("ia.json");
+  if (!D) return (app.innerHTML = `<p class="eyebrow">Inteligencia artificial</p><h1>¿Cuánto gasta la Administración en IA?</h1><div class="empty">Datos no disponibles todavía.</div>`);
+  const years = Object.keys(D.anual).filter((y) => y >= "2023").sort();
+  const A = D.anual;
+  const tot = years.reduce((a, y) => ({ n: a.n + A[y].n, i: a.i + A[y].importe, mn: a.mn + A[y].menores_n }), { n: 0, i: 0, mn: 0 });
+  const yLast = years.at(-1), yPrev = years.at(-2), yFirst = years[0];
+  const compY = years.filter((y) => A[y].oferta_unica != null).at(-1);
+  const provs = Object.entries(D.provincias).filter(([p]) => PROV[p]).sort((a, b) => b[1].importe - a[1].importe);
+  const maxP = provs[0]?.[1].importe || 1;
+  const color = (v) => `color-mix(in srgb, var(--accent) ${Math.max(8, Math.round((v / maxP) * 85))}%, var(--paper))`;
+  const meses = D.meses.filter((m) => m[0] >= "2023-01");
+  const marcas = D.marcas.map(([m, n]) => `<b>${esc(m)}</b> ${fmt(n)}`).join(" · ");
+  app.innerHTML = `<p class="eyebrow">Inteligencia artificial</p>
+    <h1>¿Cuánto gasta la Administración en IA?</h1>
+    <p class="lede">Contratos públicos cuyo objeto menciona la inteligencia artificial (IA generativa, aprendizaje automático, asistentes virtuales, ChatGPT, Copilot…) adjudicados desde ${yFirst}. Qué se compra, quién lo compra y quién lo vende.</p>
+    <div class="kpis">
+      <div class="kpi"><b>${eur(tot.i)}</b><span>adjudicados en contratos de IA (${yFirst}–${yLast})</span></div>
+      <div class="kpi"><b>${fmt(tot.n)}</b><span>adjudicaciones de ${fmt(D.organos_n)} órganos; ${fmt((100 * tot.mn) / tot.n)}% son contratos menores</span></div>
+      <div class="kpi"><b>${eur(A[yLast].importe)}</b><span>en ${yLast} (hasta hoy), frente a ${eur(A[yFirst].importe)} en todo ${yFirst}</span></div>
+      <div class="kpi"><b>${fmt((100 * D.prtr.importe) / tot.i)}%</b><span>del importe financiado con fondos Next Generation</span></div>
+    </div>
+    <h2>Adjudicaciones de IA por mes</h2>
+    <div class="card">${lineChart(meses.map((m) => [m[0], m[1]]))}
+    <p class="muted small">Número de adjudicaciones por fecha de adjudicación. Los meses más recientes pueden completarse cuando los órganos publiquen sus adjudicaciones.</p></div>
+    <h2>Año a año</h2>
+    <div class="table-wrap" id="anual"></div>
+    <p class="muted small">Oferta única: lotes de procedimientos competitivos que recibieron una sola oferta (solo si hay al menos 30 lotes). En ${compY}, ${fmt(A[compY]?.oferta_unica, 1)}% en contratos de IA frente al ${fmt(A[compY]?.oferta_unica_total, 1)}% del total.</p>
+    <div class="grid2">
+      <div><h2>Qué se compra</h2><div class="table-wrap" id="cats"></div><p class="muted small">Clasificación automática por el texto del objeto del contrato.</p></div>
+      <div><h2>Quién compra</h2><div class="table-wrap" id="grupos"></div><p class="muted small">Contratos que citan productos concretos: ${marcas}.</p></div>
+    </div>
+    <h2>Los mayores contratos</h2>
+    <div class="table-wrap" id="mayores"></div>
+    <div class="grid2">
+      <div><h2>Órganos que más adjudican</h2><div class="table-wrap" id="orgs"></div></div>
+      <div><h2>Empresas que más reciben</h2><div class="table-wrap" id="emps"></div><p class="muted small">Solo personas jurídicas y UTE. Los autónomos no se muestran.</p></div>
+    </div>
+    <h2>Por provincia del órgano</h2>
+    <div class="provgrid">${provs.map(([p, v]) => `<a href="#/organos?prov=${p}" style="background:${color(v.importe)}"><span>${esc(PROV[p])}</span><b>${eur(v.importe)}</b><span>${fmt(v.n)} adjudicaciones</span></a>`).join("")}</div>
+    <div class="disclaimer"><strong>Cómo leer estos datos.</strong> Se incluyen los contratos cuyo objeto menciona la inteligencia artificial o productos y técnicas de IA; no hay un código oficial que identifique la IA. Puede haber contratos de IA descritos con otras palabras (que no aparecen) y contratos donde la IA es solo una parte (por ejemplo, una renovación de licencias ofimáticas que incluye Copilot): el importe es el del contrato completo. Un mismo contrato publicado por dos órganos se cuenta una vez. Importes de adjudicación, sin IVA; no equivalen a lo pagado. <a href="#/metodologia">Metodología</a>.</div>`;
+  sortable($("#anual"), [
+    { k: "y", l: "Año" },
+    { k: "n", l: "Adjudicaciones", num: true, r: (r) => fmt(r.n) },
+    { k: "i", l: "Importe", num: true, r: (r) => eur(r.i) },
+    { k: "m", l: "Menores", num: true, r: (r) => fmt(r.m) },
+    { k: "u", l: "Oferta única IA", num: true, r: (r) => (r.u == null ? "—" : `${fmt(r.u, 1)}%`) },
+    { k: "t", l: "Oferta única total", num: true, r: (r) => (r.t == null ? "—" : `${fmt(r.t, 1)}%`) },
+  ], years.map((y) => ({ y, n: A[y].n, i: A[y].importe, m: A[y].menores_n, u: A[y].oferta_unica, t: A[y].oferta_unica_total })), "y", false);
+  sortable($("#cats"), [
+    { k: 0, l: "Tipo" }, { k: 1, l: "Adjudicaciones", num: true, r: (r) => fmt(r[1]) }, { k: 2, l: "Importe", num: true, r: (r) => eur(r[2]) },
+  ], D.categorias, 2);
+  sortable($("#grupos"), [
+    { k: 0, l: "Administración" }, { k: 1, l: "Adjudicaciones", num: true, r: (r) => fmt(r[1]) }, { k: 2, l: "Importe", num: true, r: (r) => eur(r[2]) },
+  ], D.grupos, 2);
+  sortable($("#mayores"), [
+    { k: 2, l: "Contrato", r: (r) => `${r[9] ? `<a href="${esc(fullUrl(r[9]))}" target="_blank" rel="noopener">${esc(r[2])}</a>` : esc(r[2])}<div class="muted small"><a href="#/organo/${encodeURIComponent(r[3])}">${esc(r[4])}</a> · ${dateEs(r[1])}</div>` },
+    { k: 5, l: "Adjudicataria", r: (r) => (r[6] ? `<a href="#/empresa/${encodeURIComponent(r[6])}">${esc(r[5])}</a>` : `<span class="muted">No se muestra</span>`) },
+    { k: 0, l: "Importe", num: true, r: (r) => eur(r[0]) },
+    { k: 7, l: "Ofertas", num: true, r: (r) => fmt(r[7]) },
+    { k: 8, l: "Procedimiento" },
+  ], D.mayores.slice(0, 25), 0);
+  sortable($("#orgs"), [
+    { k: 1, l: "Órgano", r: (r) => `<a href="#/organo/${encodeURIComponent(r[0])}">${esc(r[1])}</a><div class="muted small">${esc(PROV[r[2]] || "")}</div>` },
+    { k: 4, l: "Importe", num: true, r: (r) => eur(r[4]) },
+    { k: 3, l: "Contratos", num: true, r: (r) => fmt(r[3]) },
+  ], D.organos.slice(0, 25), 4);
+  sortable($("#emps"), [
+    { k: 1, l: "Empresa", r: (r) => `<a href="#/empresa/${encodeURIComponent(r[0])}">${esc(r[1])}</a>` },
+    { k: 3, l: "Importe", num: true, r: (r) => eur(r[3]) },
+    { k: 2, l: "Contratos", num: true, r: (r) => fmt(r[2]) },
+    { k: 4, l: "Órganos", num: true, r: (r) => fmt(r[4]) },
+  ], D.empresas.slice(0, 25), 3);
+}
+
 async function viewStatic(name) {
   const html = await fetch(`${name}.html`).then((r) => r.text()).catch(() => "");
   app.innerHTML = html || `<div class="empty">Página no disponible.</div>`;
@@ -377,6 +453,7 @@ async function route() {
     else if (parts[0] === "empresa") await viewEmpresa(decodeURIComponent(parts[1]));
     else if (parts[0] === "empresas") await viewEmpresas();
     else if (parts[0] === "fondos") await viewFondos();
+    else if (parts[0] === "ia") await viewIA();
     else if (parts[0] === "metodologia") await viewStatic("metodologia");
     else if (parts[0] === "privacidad") await viewStatic("privacidad");
     else await viewHome();

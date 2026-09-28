@@ -88,6 +88,31 @@ def categoria_fondos(codigos: str | None, texto: str | None) -> str:
     return "Sin dato"
 
 
+# Contratos de inteligencia artificial: se detectan por el objeto del contrato (el CPV no distingue la IA)
+RE_IA = re.compile(r"INTELIGENCIA\s+ARTIFICIAL|\bI\.?A\.?\s+GENERATIVA|MACHINE\s+LEARNING|APRENDIZAJE\s+(?:AUTOM[AÁ]TICO|PROFUNDO)|DEEP\s+LEARNING|"
+                   r"CHAT\s*BOT|ASISTENTES?\s+VIRTUAL|CHAT\s*GPT|\bGPT\b|COPILOT|\bLLMS?\b|MODELOS?\s+(?:DE\s+)?LENGUAJE|VISI[OÓ]N\s+ARTIFICIAL|"
+                   r"RECONOCIMIENTO\s+FACIAL|PROCESAMIENTO\s+DEL?\s+LENGUAJE\s+NATURAL|REDES\s+NEURONALES|ANAL[IÍ]TICA\s+PREDICTIVA", re.I)
+RE_IA_SIGLA = re.compile(r"\bIA\b")  # «IA» solo en mayúsculas: en minúscula es parte de palabras en gallego y catalán
+IA_CAT = [
+    ("Formación", re.compile(r"FORMACI|CURSO|TALLER|JORNADA|CAPACITACI|PONENCIA|CONFERENCIA|SEMINARIO|CHARLA|WEBINAR|M[AÁ]STER|DIPLOMA|LIBRO", re.I)),
+    ("Licencias y suscripciones", re.compile(r"LICENCIA|SUSCRIPCI|SUBSCRIPCI|ABONO|RENOVACI|CHAT\s*GPT|\bGPT\b|COPILOT|PLUS\b|\bPRO\b", re.I)),
+    ("Asistentes y chatbots", re.compile(r"CHAT\s*BOT|ASISTENTES?\s+VIRTUAL|ASISTENTE\s+CONVERSACIONAL|AGENTE\s+CONVERSACIONAL", re.I)),
+    ("Consultoría, estudios y estrategia", re.compile(r"CONSULTOR|ASISTENCIA\s+T[EÉ]CNICA|ESTRATEGIA|ESTUDIO|INFORME|AN[AÁ]LISIS|OFICINA\s+T[EÉ]CNICA|ASESORAMIENTO|AUDITOR", re.I)),
+    ("Desarrollo e implantación", re.compile(r"DESARROLL|IMPLANTACI|IMPLEMENTACI|PLATAFORMA|SOLUCI[OÓ]N|SISTEMA|HERRAMIENTA|APLICACI|SOFTWARE|MODELO|PROYECTO|MANTENIMIENTO|SERVICIO|SUMINISTRO|ADQUISICI|EVOLUTIV|PILOTO|INFRAESTRUCTURA|SERVIDOR|GPU", re.I)),
+]
+
+
+def es_ia(objeto: str | None) -> bool:
+    return bool(objeto) and bool(RE_IA.search(objeto) or RE_IA_SIGLA.search(objeto))
+
+
+def categoria_ia(objeto: str) -> str:
+    for nombre, rx in IA_CAT:
+        if rx.search(objeto):
+            return nombre
+    return "Otros"
+
+
 def umbral(tipo: str | None) -> int:
     return 40000 if tipo == "3" else 15000
 
@@ -169,6 +194,21 @@ def main() -> int:
     fondos_emp = defaultdict(lambda: {"n": 0, "importe": 0.0, "organos": set()})
     fondos_cpv = Counter()
     fondos_proc = Counter()
+    # Inteligencia artificial (todo el periodo)
+    ia_anual = defaultdict(lambda: {"n": 0, "importe": 0.0, "menores_n": 0, "menores_imp": 0.0})
+    ia_mes = defaultdict(lambda: {"n": 0, "importe": 0.0})
+    ia_comp = defaultdict(lambda: [0, 0])
+    ia_cat = defaultdict(lambda: {"n": 0, "importe": 0.0})
+    ia_grupo = defaultdict(lambda: {"n": 0, "importe": 0.0})
+    ia_prov = defaultdict(lambda: {"n": 0, "importe": 0.0})
+    ia_org = defaultdict(lambda: {"n": 0, "importe": 0.0, "lotes": 0, "unica": 0})
+    ia_emp = defaultdict(lambda: {"n": 0, "importe": 0.0, "organos": set()})
+    ia_proc = Counter()
+    ia_prtr = {"n": 0, "importe": 0.0}
+    ia_marcas = Counter()
+    ia_top = []  # (importe, fila)
+    ia_lotes = set()
+    ia_vistos = set()
     tiene_fondos = "fondos" in [c[1] for c in db.execute("PRAGMA table_info(rows)")]
     n_rows = 0
 
@@ -259,6 +299,57 @@ def main() -> int:
                 if r["cpv"]:
                     fondos_cpv[r["cpv"][:2]] += gasto
                 fondos_proc[r["procedimiento"] or "?"] += 1
+        ia_dup = False
+        if es_ia(r["objeto"]) and gasto >= 50000:
+            # un mismo contrato publicado dos veces por órganos distintos (p. ej. tras reestructurar un ministerio)
+            clave = (re.sub(r"\W+", "", r["objeto"].lower())[:150], round(gasto), r["adj_nif"])
+            ia_dup = clave in ia_vistos
+            ia_vistos.add(clave)
+        if es_ia(r["objeto"]) and not ia_dup:
+            ob = r["objeto"]
+            ia = ia_anual[y]
+            ia["n"] += 1
+            ia["importe"] += gasto
+            if menor:
+                ia["menores_n"] += 1
+                ia["menores_imp"] += gasto
+            ia_mes[mes]["n"] += 1
+            ia_mes[mes]["importe"] += gasto
+            c_ = ia_cat[categoria_ia(ob)]
+            c_["n"] += 1
+            c_["importe"] += gasto
+            g_ = ia_grupo[ADMIN_GRUPO.get(r["tipo_admin"] or "", "?")]
+            g_["n"] += 1
+            g_["importe"] += gasto
+            pv = ia_prov[r["prov"] or "??"]
+            pv["n"] += 1
+            pv["importe"] += gasto
+            io = ia_org[k]
+            io["n"] += 1
+            io["importe"] += gasto
+            ia_proc["Menor" if menor else PROC_TXT.get(r["procedimiento"] or "", "Otro")] += 1
+            if nuevo_lote and lote_id not in ia_lotes:
+                ia_lotes.add(lote_id)
+                ia_comp[y][0] += 1
+                ia_comp[y][1] += r["n_ofertas"] == 1
+                io["lotes"] += 1
+                io["unica"] += r["n_ofertas"] == 1
+            if r["adj_nif"] and not fis:
+                ie = ia_emp[r["adj_nif"]]
+                ie["n"] += 1
+                ie["importe"] += gasto
+                ie["organos"].add(k)
+                if r["adj_nombre"]:
+                    emp_name.setdefault(r["adj_nif"], r["adj_nombre"])
+            if tiene_fondos and categoria_fondos(r["fondos"], r["fondos_txt"]) == "PRTR":
+                ia_prtr["n"] += 1
+                ia_prtr["importe"] += gasto
+            for marca, rx in (("ChatGPT", r"CHAT\s*GPT|\bGPT\b|OPENAI"), ("Copilot", r"COPILOT"), ("Gemini", r"GEMINI"), ("Claude", r"\bCLAUDE\b|ANTHROPIC")):
+                if re.search(rx, ob, re.I):
+                    ia_marcas[marca] += 1
+            if gasto >= 100000:
+                ia_top.append([round(gasto), r["fecha_adj"], ob[:220], k, r["organo"], None if fis else r["adj_nombre"],
+                               None if fis else r["adj_nif"], r["n_ofertas"], "Menor" if menor else PROC_TXT.get(r["procedimiento"] or "", "Otro"), short_url(r["url"])])
         if not en12:
             continue
 
@@ -471,6 +562,31 @@ def main() -> int:
             "procedimientos": [[p_, PROC_TXT.get(p_, p_), c] for p_, c in fondos_proc.most_common()],
         }
         (out / "fondos.json").write_text(json.dumps(fondos, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+    # ---------------- inteligencia artificial
+    pct_ia = lambda c: round(100 * c[1] / c[0], 1) if c[0] >= 30 else None
+    ia_out = {
+        "anual": {yy: {"n": v["n"], "importe": round(v["importe"]), "menores_n": v["menores_n"], "menores_imp": round(v["menores_imp"]),
+                       "total_n": nat_year[yy]["n"], "total_imp": round(nat_year[yy]["importe"]),
+                       "oferta_unica": pct_ia(ia_comp[yy]), "lotes": ia_comp[yy][0],
+                       "oferta_unica_total": pct_ia([nat_year[yy]["lotes"], nat_year[yy]["unica"]])}
+                  for yy, v in sorted(ia_anual.items())},
+        "meses": sorted([m, v["n"], round(v["importe"])] for m, v in ia_mes.items()),
+        "categorias": sorted([[c, v["n"], round(v["importe"])] for c, v in ia_cat.items()], key=lambda x: -x[2]),
+        "grupos": sorted([[GRUPO_TXT.get(g, g), v["n"], round(v["importe"])] for g, v in ia_grupo.items()], key=lambda x: -x[2]),
+        "provincias": {p_: {"n": v["n"], "importe": round(v["importe"])} for p_, v in ia_prov.items()},
+        "organos": [[kk, org_meta.get(kk, (kk,))[0], org_meta[kk][2] if kk in org_meta else None, v["n"], round(v["importe"]),
+                     round(100 * v["unica"] / v["lotes"], 1) if v["lotes"] >= 5 else None, v["lotes"]]
+                    for kk, v in sorted(ia_org.items(), key=lambda x: -x[1]["importe"])[:300]],
+        "organos_n": len(ia_org),
+        "empresas": [[nif, emp_name.get(nif, nif), v["n"], round(v["importe"]), len(v["organos"])]
+                     for nif, v in sorted(ia_emp.items(), key=lambda x: -x[1]["importe"])[:300]],
+        "procedimientos": ia_proc.most_common(),
+        "prtr": {"n": ia_prtr["n"], "importe": round(ia_prtr["importe"])},
+        "marcas": ia_marcas.most_common(),
+        "mayores": sorted(ia_top, key=lambda x: -x[0])[:100],
+    }
+    (out / "ia.json").write_text(json.dumps(ia_out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # ---------------- resumen nacional
     years = sorted(nat_year)
