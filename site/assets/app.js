@@ -68,7 +68,7 @@ function lineChart(points, { h = 200, yMax = null, fmtY = (v) => fmt(v), refs = 
   s += `<polyline points="${path.join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`;
   points.forEach((p, i) => { if (p[1] != null) s += `<circle cx="${x(i)}" cy="${y(p[1])}" r="3" fill="var(--accent)"><title>${p[0]}: ${fmtY(p[1])}</title></circle>`; });
   const step = Math.ceil(points.length / 8);
-  points.forEach((p, i) => { const last = points.length - 1; if ((i % step === 0 && last - i >= step / 2) || i === last) s += `<text x="${x(i)}" y="${h - 6}" text-anchor="middle">${p[0]}</text>`; });
+  points.forEach((p, i) => { const last = points.length - 1; if ((i % step === 0 && last - i >= step / 2) || i === last) s += `<text x="${x(i)}" y="${h - 6}" text-anchor="${i === last ? "end" : i === 0 ? "start" : "middle"}">${p[0]}</text>`; });
   return `<div class="chart">${s}</svg></div>`;
 }
 
