@@ -92,7 +92,7 @@ def categoria_fondos(codigos: str | None, texto: str | None) -> str:
 RE_IA = re.compile(r"INTELIGENCIA\s+ARTIFICIAL|\bI\.?A\.?\s+GENERATIVA|MACHINE\s+LEARNING|APRENDIZAJE\s+(?:AUTOM[AÁ]TICO|PROFUNDO)|DEEP\s+LEARNING|"
                    r"CHAT\s*BOT|ASISTENTES?\s+VIRTUAL|CHAT\s*GPT|\bGPT\b|COPILOT|\bLLMS?\b|MODELOS?\s+(?:DE\s+)?LENGUAJE|VISI[OÓ]N\s+ARTIFICIAL|"
                    r"RECONOCIMIENTO\s+FACIAL|PROCESAMIENTO\s+DEL?\s+LENGUAJE\s+NATURAL|REDES\s+NEURONALES|ANAL[IÍ]TICA\s+PREDICTIVA", re.I)
-RE_IA_SIGLA = re.compile(r"\bIA\b")  # «IA» solo en mayúsculas: en minúscula es parte de palabras en gallego y catalán
+RE_IA_SIGLA = re.compile(r"\bIA\b")  # la sigla, solo en mayúsculas
 IA_CAT = [
     ("Formación", re.compile(r"FORMACI|CURSO|TALLER|JORNADA|CAPACITACI|PONENCIA|CONFERENCIA|SEMINARIO|CHARLA|WEBINAR|M[AÁ]STER|DIPLOMA|LIBRO", re.I)),
     ("Licencias y suscripciones", re.compile(r"LICENCIA|SUSCRIPCI|SUBSCRIPCI|ABONO|RENOVACI|CHAT\s*GPT|\bGPT\b|COPILOT|PLUS\b|\bPRO\b", re.I)),
